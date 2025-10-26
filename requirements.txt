@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+pandas
+python-dateutil
+pydantic
+python-dotenv
+httpx
+openpyxl
