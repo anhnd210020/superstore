@@ -1,111 +1,173 @@
-# llm_client.py — Gemini client (force 2.0 Flash)
-import os, re, json
+# llm_client.py — Gemini client (SQLite SQL generation + insight)
+from __future__ import annotations
+
+import json
+import os
+import re
 from pathlib import Path
+from typing import Any, Dict, List
+
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-_GEMINI_MODEL = "gemini-2.0-flash"
+# Model & env config
+GEMINI_MODEL = "gemini-2.0-flash"
+ENV_PATH = Path("/home/ducanhhh/superstore/.env")  # adjust if different
 
-# ---- .env path (chỉnh đúng đường dẫn của bạn) ----
-ENV_PATH = Path("/home/ducanhhh/superstore/.env")
+# Extract the first JSON object in a string
+_JSON_RE = re.compile(r"\{[\s\S]*\}")
 
-def _config():
-    # Nạp .env đúng file, cho phép ghi đè biến sẵn có
+
+def _config() -> None:
+    # Load .env explicitly from ENV_PATH to avoid CWD surprises
     load_dotenv(dotenv_path=str(ENV_PATH), override=True)
 
-    # Lấy key theo nhiều tên & làm sạch
-    raw_key = (
+    raw = (
         os.getenv("GEMINI_API_KEY")
         or os.getenv("GOOGLE_API_KEY")
         or os.getenv("GOOGLE_API_KEY_GEMINI")
     )
-    if not raw_key:
-        raise RuntimeError("Missing GEMINI_API_KEY env.")
+    if not raw:
+        raise RuntimeError("Missing GEMINI_API_KEY (or GOOGLE_API_KEY[_GEMINI]).")
 
-    api_key = raw_key.strip().strip('"').strip("'")  # bỏ ngoặc/khoảng trắng thừa
+    # Normalize common quoting issues when keys are stored as "key"
+    api_key = raw.strip().strip('"').strip("'")
     if not api_key:
         raise RuntimeError("Empty GEMINI_API_KEY after stripping.")
     genai.configure(api_key=api_key)
 
-_JSON_RE = re.compile(r"\{[\s\S]*\}")
 
-def _safe_json(s: str):
-    m = _JSON_RE.search((s or "").strip())
-    if not m:
-        raise ValueError("LLM didn't return JSON.")
-    return json.loads(m.group(0))
+def _safe_json(text: str) -> Dict[str, Any]:
+    """
+    Extract the first JSON object from a text blob.
 
-def _resp_text(resp) -> str:
-    # Phòng khi SDK không set resp.text
+    Args:
+        text (str): Raw text possibly containing a JSON object.
+
+    Returns:
+        Dict[str, Any]: Parsed JSON dict.
+
+    Raises:
+        ValueError: If no JSON object is found or JSON is invalid.
+    """
+    match = _JSON_RE.search((text or "").strip())
+    if not match:
+        raise ValueError("LLM did not return a JSON object.")
+    return json.loads(match.group(0))
+
+
+def _resp_text(resp: Any) -> str:
+    """
+    Safely extract text content from a Gemini response object.
+
+    Args:
+        resp (Any): Raw response from google.generativeai.
+
+    Returns:
+        str: Extracted text (empty if not found).
+    """
     try:
+        # Typical path for SDK responses
         if getattr(resp, "text", None):
             return resp.text
-        # fallback gom text từ candidates/parts
-        cands = getattr(resp, "candidates", [])
-        if cands and hasattr(cands[0], "content") and getattr(cands[0].content, "parts", None):
-            return "".join(getattr(p, "text", "") for p in cands[0].content.parts)
+
+        # Fallback path used by some SDK versions
+        candidates = getattr(resp, "candidates", [])
+        if candidates and hasattr(candidates[0], "content"):
+            parts = getattr(candidates[0].content, "parts", None)
+            if parts:
+                return "".join(getattr(p, "text", "") for p in parts)
     except Exception:
+        # Swallow extraction errors; caller will handle empty text
         pass
     return ""
 
-def llm_parse_question(question: str) -> dict:
-    _config()
-    sys_prompt = """
-        Bạn là bộ phân tích truy vấn bán hàng. Nhiệm vụ: chuyển câu hỏi tự nhiên (tiếng Việt) thành 1 JSON duy nhất theo đúng schema yêu cầu.
 
-        [DATASET CONTEXT]
-        Bộ dữ liệu Superstore (Mỹ), đã làm sạch cơ bản, ~9.800 dòng, 21 cột, giai đoạn 2014–2017. Mỗi dòng là 1 giao dịch bán hàng.
-
-        Nhóm thuộc tính & cột chính:
-        - Đơn hàng: Order ID, Order Date, Ship Date, Ship Mode
-        - Khách hàng: Customer ID, Customer Name, Segment ∈ {Consumer, Corporate, Home Office}
-        - Địa lý: Country, City, State, Postal Code, Region
-        - Sản phẩm: Product ID, Category ∈ {Furniture, Office Supplies, Technology}, Sub-Category, Product Name
-        - Kinh doanh: Sales, Quantity, Discount, Profit
-
-        [QUY ƯỚC & GIỚI HẠN]
-        - Thời gian mặc định: dữ liệu có từ 2014–2017. Nếu người dùng nói “tháng này/tháng trước” thì để null, backend sẽ tự resolve theo tháng có dữ liệu mới nhất.
-        - Metric hợp lệ: sales | profit | orders | qty
-        - Groupby hợp lệ: product | category | subcategory | region | state | segment | ship_mode
-        - Không tự suy diễn số liệu; KHÔNG viết SQL; chỉ trả về JSON tham số để backend truy vấn KPI có sẵn.
-        - Nếu câu hỏi mơ hồ về thời gian, ưu tiên intent “latest_month_overview”.
-
-        [SCHEMA JSON BẮT BUỘC]
-        {
-        "intent": "top_n_by_metric_in_month | compare_mom_group | most_negative_profit | trend_range | latest_month_overview",
-        "metric": "sales|profit|orders|qty",
-        "groupby": "product|category|subcategory|region|state|segment|ship_mode|null",
-        "topn": 5,
-        "month_key": "YYYY-MM|null",
-        "month_from": "YYYY-MM|null",
-        "month_to": "YYYY-MM|null"
-        }
-
-        [HƯỚNG DẪN DIỄN GIẢI]
-        - “Top/bán chạy/đứng đầu”: dùng intent top_n_by_metric_in_month (mặc định groupby=product nếu không nói rõ).
-        - “So với tháng trước/MoM”: dùng intent compare_mom_group.
-        - “Lỗ nhiều nhất/âm nhất”: dùng intent most_negative_profit (groupby mặc định=subcategory).
-        - “Xu hướng/từ…đến…”: dùng intent trend_range (dùng month_from, month_to).
-        - “Tổng quan tháng này/hiện tại”: dùng intent latest_month_overview.
-
-        [ĐẦU RA]
-        - Chỉ in DUY NHẤT 1 JSON object theo schema trên, không giải thích thêm.
+def llm_generate_sql(question: str, schema_path: str = "schema_catalog.json") -> Dict[str, str]:
     """
-    user = f"Câu hỏi: {question}"
-    model = genai.GenerativeModel(_GEMINI_MODEL)
-    resp = model.generate_content([sys_prompt, user])
-    return _safe_json(_resp_text(resp))
+    LLM #1: Generate a single SQLite SELECT statement to answer the question.
 
-def llm_make_insight(intent: str, params: dict, answer_table: list[dict]) -> str:
+    Args:
+        question (str): User's natural-language question.
+        schema_path (str): Path to schema catalog JSON used as context.
+
+    Returns:
+        Dict[str, str]: {"sql": "...", "notes": "..."} (strings may be empty).
+
+    Raises:
+        FileNotFoundError: If schema_path cannot be read.
+        ValueError/RuntimeError: On LLM/JSON/config issues.
+    """
     _config()
-    prompt = f"""
-Bạn là chuyên gia BI. Viết insight TIẾNG VIỆT ngắn gọn cho dữ liệu bán hàng.
-- Tối đa 2 câu, <= 45 từ/câu, có số/%, tránh rườm rà.
-intent={intent}
-params={json.dumps(params, ensure_ascii=False)}
-data_rows(<=10)={json.dumps(answer_table[:10], ensure_ascii=False)}
-Chỉ trả văn bản insight (không JSON/markdown).
+
+    schema_file = Path(schema_path)
+    if not schema_file.exists():
+        raise FileNotFoundError(f"Schema file not found: {schema_file}")
+    schema = schema_file.read_text(encoding="utf-8")
+
+    # System prompt: concise, with concrete SQL conventions (Vietnamese as-is)
+    sys_prompt = f"""
+Bạn là chuyên gia SQL cho SQLite. Viết 1 câu SELECT duy nhất dựa trên SCHEMA JSON sau.
+Chỉ dùng bảng/cột có trong schema. Không dùng INSERT/UPDATE/DELETE/DDL.
+
+[SCHEMA JSON]
+{schema}
+
+[HƯỚNG DẪN NGẮN]
+- Tổng hợp chuẩn:
+  SUM(fact_sales.sales) AS sales,
+  SUM(fact_sales.profit) AS profit,
+  SUM(fact_sales.qty) AS qty,
+  COUNT(DISTINCT fact_sales.order_id) AS orders.
+- Thời gian: dùng dim_date.month_key (YYYY-MM) hoặc kpi_*_m.month_key.
+- Join ngày: fact_sales.date_key = dim_date.date_key (khi cần).
+- Sản phẩm: fact_sales.product_id = dim_product.product_id (khi cần).
+- Nếu là 'top N' thì ORDER BY metric phù hợp + LIMIT N.
+- Nếu N không rõ, dùng LIMIT 200.
+
+[ĐẦU RA]
+Chỉ in 1 JSON:
+{{
+  "sql": "SELECT ...",
+  "notes": "<=25 từ"
+}}
 """
-    model = genai.GenerativeModel(_GEMINI_MODEL)
+    user = f"Câu hỏi: {question}"
+
+    model = genai.GenerativeModel(GEMINI_MODEL)
+    resp = model.generate_content([sys_prompt, user])
+
+    data = _safe_json(_resp_text(resp))
+    return {
+        "sql": (data.get("sql") or "").strip(),
+        "notes": (data.get("notes") or "").strip(),
+    }
+
+
+def llm_make_insight(intent: str, params: Dict[str, Any], answer_table: List[Dict[str, Any]]) -> str:
+    """
+    LLM #2: Generate a concise Vietnamese insight from tabular data.
+
+    Args:
+        intent (str): High-level intent label (e.g., "auto", "top_products").
+        params (Dict[str, Any]): Context (e.g., question, sql).
+        answer_table (List[Dict[str, Any]]): Query results used for summarization.
+
+    Returns:
+        str: Plain-text insight (max ~2 sentences).
+    """
+    _config()
+
+    # Keep payload short; clip rows to reduce token usage and encourage crisp answers
+    prompt = (
+        "Bạn là chuyên gia BI. Viết insight TIẾNG VIỆT ngắn gọn cho dữ liệu bán hàng.\n"
+        "- Tối đa 2 câu, <= 45 từ/câu, có số/%.\n"
+        f"intent={intent}\n"
+        f"params={json.dumps(params, ensure_ascii=False)}\n"
+        f"data_rows(<=10)={json.dumps(answer_table[:10], ensure_ascii=False)}\n"
+        "Chỉ trả văn bản insight (không JSON/markdown)."
+    )
+
+    model = genai.GenerativeModel(GEMINI_MODEL)
     resp = model.generate_content(prompt)
     return (_resp_text(resp) or "").strip()
