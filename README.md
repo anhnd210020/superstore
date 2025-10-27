@@ -13,7 +13,6 @@ superstore/
 │  │  └─ llm_client.py                     
 │  └─ service/
 │     └─ ask_pipeline.py          
-├─ app.py                        
 ├─ schema_catalog.json            
 ├─ artifacts/
 │  └─ salesmart.db                
