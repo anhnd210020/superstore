@@ -1,44 +1,59 @@
-"""
-Pipeline to process user questions using LLM and database.
-Steps:
-1. LLM generates SQL from natural language.
-2. Execute SQL on database.
-3. LLM summarizes results into human-readable insight.
-"""
+# app/service/ask_pipeline.py
+from __future__ import annotations
 
-from typing import Dict, Any, List
+from typing import Any, Dict, List, Optional
 
-from app.llm import llm_client 
 from app.intents import query_engine
+from app.llm import llm_client  
+from app.vis import chart_renderer 
+
+def _valid_chart_spec(
+    rows: List[Dict[str, Any]],
+    viz: Optional[Dict[str, Any]],
+) -> bool:
+    """Check minimal validity of a viz spec against returned rows."""
+    if not rows or not viz:
+        return False
+
+    x = viz.get("x")
+    y = viz.get("y")
+    if not x or not y:
+        return False
+
+    cols = set(rows[0].keys())
+    return x in cols and y in cols
 
 
 def ask_once(question: str) -> Dict[str, Any]:
     """
-    Execute the full pipeline one time:
-    LLM (SQL generation) → Run SQL → LLM (insight generation) → Response.
-
-    Args:
-        question (str): Natural language question from the user.
-
-    Returns:
-        Dict[str, Any]: Structured response with SQL, table data, and insight.
+    LLM (SQL) → Run SQL → (if confident chart & viz valid) render chart → else insight-only.
     """
-    # Step 1: Use LLM to generate SQL query from the user's question
-    gen = llm_client.llm_generate_sql(question)
-    sql: str = gen.get("sql", "")
+    gen = llm_client.llm_generate_sql(question)  # {intent, confidence, reason, sql, notes, viz}
 
-    # Step 2: Execute the SQL query against local SQLite database
+    sql: str = str(gen.get("sql") or "")
+    intent: str = str(gen.get("intent") or "insight")
+    confidence: float = float(gen.get("confidence") or 0.0)
+    viz: Optional[Dict[str, Any]] = gen.get("viz")  # type: ignore[assignment]
+
     rows: List[Dict[str, Any]] = query_engine.execute_sql(sql)
 
-    # Step 3: Generate human-readable insight from SQL results
-    insight: str = llm_client.llm_make_insight(
-        intent="auto",
-        params={"question": question, "sql": sql},
-        answer_table=rows
+    # Quyết định vẽ: KHÔNG hard-code từ khóa; chỉ dựa vào LLM + tính hợp lệ viz + dữ liệu thật.
+    is_chart = (intent == "chart") and (confidence >= 0.8) and _valid_chart_spec(rows, viz)
+
+    if is_chart:
+        chart = chart_renderer.make_chart_png(rows, viz)  # type: ignore[arg-type]
+        image_url = chart_renderer.save_chart_base64_to_file(chart["data_base64"])
+        insight = llm_client.llm_make_insight(
+            intent="chart",
+            params={"question": question, "sql": sql, "viz": viz, "confidence": confidence},
+            answer_table=rows[:10],
+        )
+        return {"image_url": image_url, "insight_text": insight}
+
+    # Mặc định: insight-only
+    insight = llm_client.llm_make_insight(
+        intent="insight",
+        params={"question": question, "sql": sql, "confidence": confidence},
+        answer_table=rows[:10],
     )
-    # Final structured response
-    return {
-        "question": question,
-        "insight_text": insight,
-        "notes": gen.get("notes", "")
-    }
+    return {"insight_text": insight}

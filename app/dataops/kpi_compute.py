@@ -35,7 +35,7 @@ def safe_pct_change(current: float, previous: float) -> float:
     Returns:
         float: Percentage change or NaN if previous is zero or NaN.
     """
-    if pd.isna(previous) or previous == 0:
+    if pd.isna(previous) or previous == 0:  
         return np.nan
     return (current - previous) / previous
 
@@ -289,7 +289,6 @@ def main():
 
     # Print summary
     latest_month = kpi_monthly["month_key"].iloc[-1]
-    print(" KPIs computed successfully.")
     print(f"   Latest month: {latest_month}")
     print("   Parquet outputs:")
     print(
