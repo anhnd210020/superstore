@@ -3,9 +3,11 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+# Import query execution, LLM client, and chart rendering modules
 from app.intents import query_engine
-from app.llm import llm_client  
-from app.vis import chart_renderer 
+from app.llm import llm_client
+from app.vis import chart_renderer
+
 
 def _valid_chart_spec(
     rows: List[Dict[str, Any]],
@@ -15,45 +17,50 @@ def _valid_chart_spec(
     if not rows or not viz:
         return False
 
+    # Extract x/y axis names from the visualization spec
     x = viz.get("x")
     y = viz.get("y")
     if not x or not y:
         return False
 
+    # Ensure that the x and y columns exist in the query result
     cols = set(rows[0].keys())
     return x in cols and y in cols
 
 
 def ask_once(question: str) -> Dict[str, Any]:
     """
-    LLM (SQL) → Run SQL → (if confident chart & viz valid) render chart → else insight-only.
+    Main pipeline:
+    1. Use LLM to generate SQL and visualization spec.
+    2. Execute SQL query to get data.
+    3. If chart intent is confident and valid → render chart.
+    4. Otherwise → generate textual insight only.
     """
-    gen = llm_client.llm_generate_sql(question)  # {intent, confidence, reason, sql, notes, viz}
+    # Call LLM to produce SQL, visualization spec, and confidence
+    gen = llm_client.llm_generate_sql(question)  
 
+    # Extract generated fields safely with defaults
     sql: str = str(gen.get("sql") or "")
     intent: str = str(gen.get("intent") or "insight")
     confidence: float = float(gen.get("confidence") or 0.0)
-    viz: Optional[Dict[str, Any]] = gen.get("viz")  # type: ignore[assignment]
+    viz: Optional[Dict[str, Any]] = gen.get("viz")  
 
+    # Execute SQL and get rows (list of dicts)
     rows: List[Dict[str, Any]] = query_engine.execute_sql(sql)
 
-    # Quyết định vẽ: KHÔNG hard-code từ khóa; chỉ dựa vào LLM + tính hợp lệ viz + dữ liệu thật.
+    # Determine whether to produce a chart
     is_chart = (intent == "chart") and (confidence >= 0.8) and _valid_chart_spec(rows, viz)
 
     if is_chart:
-        chart = chart_renderer.make_chart_png(rows, viz)  # type: ignore[arg-type]
-        image_url = chart_renderer.save_chart_base64_to_file(chart["data_base64"])
-        insight = llm_client.llm_make_insight(
-            intent="chart",
-            params={"question": question, "sql": sql, "viz": viz, "confidence": confidence},
-            answer_table=rows[:10],
-        )
-        return {"image_url": image_url, "insight_text": insight}
+        # Generate chart PNG from rows and viz spec
+        chart = chart_renderer.make_chart_png(rows, viz)
+        png_bytes = chart["data_bytes"]
+        return {"image_bytes": png_bytes}
 
-    # Mặc định: insight-only
+    # Otherwise, request the LLM to create an insight text summary
     insight = llm_client.llm_make_insight(
         intent="insight",
         params={"question": question, "sql": sql, "confidence": confidence},
-        answer_table=rows[:10],
+        answer_table=rows[:15],  # Limit preview table to 15 rows
     )
     return {"insight_text": insight}
