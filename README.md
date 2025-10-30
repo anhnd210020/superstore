@@ -86,23 +86,27 @@ To start the FastAPI server, run the following command in the project root:
 
 ## File Organization
 ```text
-superstore/
-├─ app/
-│  ├─ api/
-│  │  └─ app.py
-│  ├─ dataops/
-│  │  └─ datamart_build.py
-│  │  └─ kpi_compute.py
-│  ├─ intents/
-│  │  └─ query_engine.py   
-│  ├─ llm/
-│  │  └─ llm_client.py                     
-│  └─ service/
-│     └─ ask_pipeline.py          
-├─ schema_catalog.json            
-├─ artifacts/
-│  └─ salesmart.db                
-└─ requirements.txt               
+├── app
+│   ├── api
+│   │   ├── app.py
+│   ├── dataops
+│   │   ├── datamart_build.py
+│   │   ├── insight_log.py
+│   │   ├── kpi_compute.py
+│   ├── intents
+│   │   └── query_engine.py
+│   ├── llm
+│   │   ├── llm_client.py
+│   ├── service
+│   │   ├── ask_pipeline.py
+│   └── vis
+│       ├── chart_renderer.py
+│       ├── chart_store.py
+├── pic
+│   ├── 2017MonthlySales.png
+│   └── System_Architecture_Superstore.png
+├── README.md
+├── requirements.txt          
 ```
 
 ## Example Usage
