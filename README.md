@@ -31,7 +31,7 @@ After retrieving the data, Gemini generates a short Vietnamese insight summary (
 
 ![System Architecture](pic/System_Architecture_Superstore.png)
 
-The diagram shows the overall workflow of the **Superstore AI** system. A user or client sends a **POST /ask** request containing a Vietnamese question to the **FastAPI server**. The request is handled by `app.py`, which calls the core function `ask_pipeline.ask_once`. Inside this pipeline, **Gemini (LLM #1)** is used through `llm_generate_sql()` to convert the natural-language question into an SQL query. This SQL query is then executed on the **SQLite database (`artifacts/salesmart.db`)**, and the resulting data rows are passed to **Gemini (LLM #2)** via `llm_make_insight()` to generate a short and readable Vietnamese insight. Finally, **FastAPI** packages the generated `insight_text` and returns it to the user as a **JSON response**.
+The Superstore AI system operates as follows: the user submits a natural-language question to the FastAPI /ask endpoint, which forwards the query to the Gemini model (llm_generate_sql) for semantic interpretation and generation of an SQL query along with supplementary information including intent, confidence, and viz. The generated SQL is executed on the SQLite database (execute_sql) to produce query results (rows). Based on intent, confidence, and viz, the system determines whether to render a chart (is_chart). If required, the data is passed to the renderer (make_chart_png) to create a chart image (chart_image); otherwise, a textual insight (insight_text) is generated. Finally, FastAPI returns the response to the user, containing either the chart with its analytical summary or the textual insight only, depending on the intent type.
 
 ## Technologies Used
 
