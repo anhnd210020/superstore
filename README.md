@@ -2,9 +2,7 @@
 
 ## Project Overview
 
-Superstore AI is an intelligent LLM-powered analytics system that allows users to explore and understand sales data using natural language questions in Vietnamese.
-
-The system interprets each question, generates the appropriate SQL query for a local SQLite database, executes it, and then returns concise insights or visual charts depending on the detected intent.
+Superstore AI is an intelligent analytics system that transforms natural-language questions into executable SQL queries and visual insights. The system enables users to explore sales data interactively without requiring any knowledge of SQL or BI tools. By leveraging a Gemini-powered LLM for semantic understanding, Superstore AI automatically interprets business questions, retrieves relevant information from a local SQLite DataMart, and generates either concise textual insights or visual charts that summarize key performance indicators.
 
 ## Features
 
@@ -138,3 +136,11 @@ To start the FastAPI server, run the following command in the project root:
 
 **Output**
 ![2017 Monthly Sales](pic/2017MonthlySales.png)
+
+##  Author
+
+**Nguyễn Đức Anh**
+University: Hanoi University of Science and Technology (HUST)
+Email: [anh.nd210020@gmail.com](mailto:anh.nd210020@gmail.com)
+Address: Hanoi, Vietnam
+GitHub: [anhnd210020](https://github.com/anhnd210020)
