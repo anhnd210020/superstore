@@ -37,13 +37,13 @@ def ask_once(question: str) -> Dict[str, Any]:
     4. Otherwise → generate textual insight only.
     """
     # Call LLM to produce SQL, visualization spec, and confidence
-    gen = llm_client.llm_generate_sql(question)  
+    query_spec = llm_client.llm_generate_sql(question)  
 
     # Extract generated fields safely with defaults
-    sql: str = str(gen.get("sql") or "")
-    intent: str = str(gen.get("intent") or "insight")
-    confidence: float = float(gen.get("confidence") or 0.0)
-    viz: Optional[Dict[str, Any]] = gen.get("viz")  
+    sql: str = str(query_spec.get("sql") or "")
+    intent: str = str(query_spec.get("intent") or "insight")
+    confidence: float = float(query_spec.get("confidence") or 0.0)
+    viz: Optional[Dict[str, Any]] = query_spec.get("viz")  
 
     # Execute SQL and get rows (list of dicts)
     rows: List[Dict[str, Any]] = query_engine.execute_sql(sql)
@@ -52,15 +52,20 @@ def ask_once(question: str) -> Dict[str, Any]:
     is_chart = (intent == "chart") and (confidence >= 0.8) and _valid_chart_spec(rows, viz)
 
     if is_chart:
-        # Generate chart PNG from rows and viz spec
-        chart = chart_renderer.make_chart_png(rows, viz)
+        chart = chart_renderer.make_chart_png(rows, viz)  # type: ignore[arg-type]
         png_bytes = chart["data_bytes"]
-        return {"image_bytes": png_bytes}
+        insight = llm_client.llm_make_insight(
+            intent="chart",
+            params={"question": question, "sql": sql, "viz": viz, "confidence": confidence},
+            answer_table=rows[:15],
+        )
+        return {"chart_image": png_bytes, "insight_text": insight}
 
     # Otherwise, request the LLM to create an insight text summary
     insight = llm_client.llm_make_insight(
         intent="insight",
         params={"question": question, "sql": sql, "confidence": confidence},
-        answer_table=rows[:15],  # Limit preview table to 15 rows
+        answer_table=rows[:15], 
     )
     return {"insight_text": insight}
+
