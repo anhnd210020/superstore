@@ -4,7 +4,8 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.responses import Response
 from pydantic import BaseModel
-
+from app.dataops import insight_log
+from app.vis import chart_store 
 # Import the core pipeline that processes the user's question
 from app.service import ask_pipeline
 
@@ -18,12 +19,18 @@ class AskIn(BaseModel):
 # Define the API endpoint for asking a question
 @app.post("/ask", response_model=None)
 def ask(in_: AskIn):
-    # Call the main pipeline to handle the question and get result
     result = ask_pipeline.ask_once(in_.question)
 
-    # If a chart (image) is returned, send it as PNG bytes
-    image_bytes = result.get("image_bytes")
-    if image_bytes:
-        return Response(content=image_bytes, media_type="image/png")
+    chart_image = result.get("chart_image")
+    if chart_image:
+        saved_png = chart_store.save_chart_image_dated(chart_image)
+
+        insight_text = result.get("insight_text", "")
+        chart_store.write_chart_insight_jsonl(saved_png, in_.question, insight_text)
+
+        return Response(content=chart_image, media_type="image/png")
     
-    return result
+    insight_text = result.get("insight_text", "")
+    insight_log.log_insight(in_.question, insight_text)
+
+    return {"insight_text": insight_text}
