@@ -133,13 +133,22 @@ YÊU CẦU
   * "insight" cho các trường hợp còn lại.
 - Nếu intent="chart", thêm viz tối thiểu:
   {{chart_type: "line"|"bar", x: "...", y: "...", title: "việt ngắn", sort: "x"|"y"|"none", limit: 24}}
-- Thêm confidence (0..1) + reason (<=20 từ).
++ Thêm trường draw_chart (true/false) để chỉ định có vẽ biểu đồ hay không.
+
+RÀNG BUỘC TIÊU ĐỀ (title) — PHẢI BÁM SÁT CÂU HỎI
+- Tiêu đề viết tiếng Việt, ≤ 70 ký tự, **không thêm mỹ từ/không đổi nghĩa**.
+- Nếu câu hỏi có “Top N …” → **giữ đúng cụm “Top N …” trong title** (không thay “Top” bằng từ khác). 
+Nếu câu hỏi kiểu "Top các danh mục lỗ nhiều nhất năm 2017?", thì trong trường hợp này chỉ có "Top" mà không phải là "Top N" 
+thì title có thể bỏ Top đi. Trong trường hợp ví dụ kia thì sẽ là "Các danh mục lỗ nhiều nhất năm 2017?". Nếu câu hỏi không có 
+"Top N" thì đừng tự tiện nhét lên tiêu đề của biểu đồ. Hãy bám sát câu hỏi trước khi sinh ra tiêu đề cho biểu đồ.
+- Nếu câu hỏi có mốc năm/tháng → **chèn đúng mốc đó** vào title (vd: “2017”).
+- Nếu câu hỏi nói “doanh thu”, “lợi nhuận”, etc → title **phải giữ đúng thuật ngữ đó**.
 
 BIẾN THỜI GIAN (Asia/Bangkok)
 - today_date={today_date}, today_year={today_year}, today_month={today_month}, prev_year={prev_year}
 
 CỬA SỔ DỮ LIỆU (dim_date.month_key): {window_txt}
-- Nếu mốc hỏi NẰM NGOÀI phạm vi: đặt intent="insight", viz=null, confidence=1.0, notes="OUT_OF_RANGE"
+- Nếu mốc hỏi NẰM NGOÀI phạm vi: đặt intent="insight", viz=null, notes="OUT_OF_RANGE"
   và SELECT an toàn:
   SELECT MIN(month_key) AS min_month_key, MAX(month_key) AS max_month_key FROM kpi_monthly;
 
@@ -163,7 +172,7 @@ HƯỚNG DẪN
 ĐẦU RA (JSON DUY NHẤT)
 {{
   "intent": "chart"|"insight",
-  "confidence": 0.0,
+  "draw_chart": false,
   "reason": "...",
   "sql": "SELECT ...",
   "notes": "...",
@@ -206,13 +215,20 @@ def llm_generate_sql(question: str, schema_path: str = "schema_catalog.json") ->
     # Keep user message separate for better grounding.
     user_msg = f"Câu hỏi (đã chuẩn hoá thời gian): {norm_question}"
 
-    model = genai.GenerativeModel(GEMINI_MODEL)
+    model = genai.GenerativeModel(
+    GEMINI_MODEL,
+    generation_config={
+        "temperature": 0.0,
+    },
+)
+
     resp = model.generate_content([sys_prompt, user_msg])
 
     data = _safe_json(_resp_text(resp))
+    print("LLM generated SQL:", data)
     return {
         "intent": (data.get("intent") or "insight").strip(),
-        "confidence": float(data.get("confidence") or 0.0),
+        "draw_chart": bool(data.get("draw_chart")),
         "reason": (data.get("reason") or "").strip(),
         "sql": (data.get("sql") or "").strip(),
         "notes": (data.get("notes") or "").strip(),
@@ -235,6 +251,7 @@ def llm_make_insight(
     prompt = (
         "Bạn là chuyên gia BI. Viết insight TIẾNG VIỆT ngắn gọn (≤2 câu, ≤45 từ/câu),"
         " có thể nêu số/% khi phù hợp.\n"
+        f"Câu hỏi của ngươi dùng là {params.get('question')}.\n"
         f"- Cửa sổ dữ liệu (month_key): {window_txt}\n"
         "- QUY TẮC:\n"
         "  * Nếu data_rows trống HOẶC chỉ gồm min/max window → chỉ trả: "
@@ -245,6 +262,12 @@ def llm_make_insight(
         "Chỉ trả văn bản (không JSON/markdown)."
     )
 
-    model = genai.GenerativeModel(GEMINI_MODEL)
+    model = genai.GenerativeModel(
+    GEMINI_MODEL,
+    generation_config={
+        "temperature": 0.0,
+    },
+)
     resp = model.generate_content(prompt)
+    print("LLM generated insight:", _resp_text(resp))
     return (_resp_text(resp) or "").strip()
