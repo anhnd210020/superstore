@@ -52,7 +52,7 @@ For this project, **python=3.11** are used.
    cd superstore
    ```
 
-2. **Create a virtual environment for SurgicalSAM and and activate the environment.**
+2. **Create a virtual environment for Supestore and and activate the environment.**
 
    ```bash
    conda create -n superstore python=3.11
