@@ -79,7 +79,7 @@ Create a `.env` file in the project root directory with the following content:
 To start the FastAPI server, run the following command in the project root:
 
    ```bash
-   uvicorn app.api.app:app --reload
+   uvicorn app.api.app:app --reload --port 8000
    ```
 
 ## File Organization
