@@ -133,14 +133,33 @@ YÊU CẦU
   * "insight" cho các trường hợp còn lại.
 - Nếu intent="chart", thêm viz tối thiểu:
   {{chart_type: "line"|"bar", x: "...", y: "...", title: "việt ngắn", sort: "x"|"y"|"none", limit: 24}}
-+ Thêm trường draw_chart (true/false) để chỉ định có vẽ biểu đồ hay không.
+- Thêm trường draw_chart (true/false) để chỉ định có vẽ biểu đồ hay không.
+
+QUY TẮC CHỌN INTENT (rất quan trọng)
+- Nếu câu hỏi chỉ chứa **một mốc thời gian duy nhất** (ví dụ: “năm 2017”, “tháng 2015-08”) → intent="insight", draw_chart=false.
+- Chỉ vẽ biểu đồ khi câu hỏi bao quát **nhiều mốc thời gian** (range hoặc chuỗi):
+  • Khoảng thời gian: “từ … đến …”, “giai đoạn …”
+  • Tập nhiều mốc: “các tháng trong năm …”, “quý 1..4”, “2014/2015/2016…”
+- Ví dụ ⇒ intent:
+  • “Doanh thu năm 2017 như nào?” → insight, draw_chart=false
+  • “Doanh thu tháng 8 năm 2015 như nào?” → insight, draw_chart=false
+  • “Doanh thu từ tháng 1 đến tháng 6 năm 2014?” → chart, draw_chart=true
+  • “Doanh thu các tháng trong năm 2015?” → chart, draw_chart=true
+
+  DIỄN GIẢI NGỮ NGHĨA (cực kỳ quan trọng)
+- "doanh thu" = sales. Doanh thu **không âm**; KHÔNG viết điều kiện `SUM(sales) < 0`.
+- "lợi nhuận", "lãi" = profit > 0; "lỗ" = profit < 0.
+- Nếu câu hỏi có "lỗ" → trong SQL phải dùng **profit** và lọc **`HAVING SUM(profit) < 0`**.
+- Nếu câu hỏi có "lãi"/"lợi nhuận" → dùng **profit** (có thể `HAVING SUM(profit) > 0`).
+- "… lỗ nhất" → `ORDER BY SUM(profit) ASC LIMIT 1` (kèm `HAVING SUM(profit) < 0`).
+- "… lãi nhất" → `ORDER BY SUM(profit) DESC LIMIT 1` (kèm `HAVING SUM(profit) > 0`).
+- Top-N: dùng `ORDER BY ... DESC/ASC LIMIT N` tùy ngữ nghĩa; ghi rõ N từ câu hỏi.
 
 RÀNG BUỘC TIÊU ĐỀ (title) — PHẢI BÁM SÁT CÂU HỎI
 - Tiêu đề viết tiếng Việt, ≤ 70 ký tự, **không thêm mỹ từ/không đổi nghĩa**.
-- Nếu câu hỏi có “Top N …” → **giữ đúng cụm “Top N …” trong title** (không thay “Top” bằng từ khác). 
-Nếu câu hỏi kiểu "Top các danh mục lỗ nhiều nhất năm 2017?", thì trong trường hợp này chỉ có "Top" mà không phải là "Top N" 
-thì title có thể bỏ Top đi. Trong trường hợp ví dụ kia thì sẽ là "Các danh mục lỗ nhiều nhất năm 2017?". Nếu câu hỏi không có 
-"Top N" thì đừng tự tiện nhét lên tiêu đề của biểu đồ. Hãy bám sát câu hỏi trước khi sinh ra tiêu đề cho biểu đồ.
+- Nếu câu hỏi có “Top N …” → **giữ đúng cụm “Top N …” trong title** (không thay “Top” bằng từ khác).
+  Nếu câu hỏi kiểu "Top các danh mục lỗ nhiều nhất năm 2017?" (không có N) thì có thể bỏ "Top" trong title,
+  ví dụ: "Các danh mục lỗ nhiều nhất năm 2017".
 - Nếu câu hỏi có mốc năm/tháng → **chèn đúng mốc đó** vào title (vd: “2017”).
 - Nếu câu hỏi nói “doanh thu”, “lợi nhuận”, etc → title **phải giữ đúng thuật ngữ đó**.
 
@@ -151,6 +170,19 @@ CỬA SỔ DỮ LIỆU (dim_date.month_key): {window_txt}
 - Nếu mốc hỏi NẰM NGOÀI phạm vi: đặt intent="insight", viz=null, notes="OUT_OF_RANGE"
   và SELECT an toàn:
   SELECT MIN(month_key) AS min_month_key, MAX(month_key) AS max_month_key FROM kpi_monthly;
+- Nếu người dùng yêu cầu so sánh HAI MỐC thời gian bất kỳ (vd: “tháng 6/2016 và tháng 4/2014”, “năm 2017 với 2015”) →
+  sử dụng phép JOIN giữa hai alias (a, b) của cùng bảng KPI (vd: kpi_monthly_enriched).
+  Ví dụ:
+  SELECT a.month_key, b.month_key, a.sales_m, b.sales_m,
+         (a.sales_m - b.sales_m) AS diff_sales,
+         ROUND((a.sales_m - b.sales_m)*100.0/b.sales_m, 2) AS pct_change
+  FROM kpi_monthly_enriched a
+  JOIN kpi_monthly_enriched b
+  WHERE a.month_key='2016-06' AND b.month_key='2014-04';
+- Nếu người dùng hỏi theo nhóm (segment/category) → dùng bảng tương ứng:
+  kpi_segment_m_enriched hoặc kpi_category_m_enriched.
+- Nếu bất kỳ mốc năm/tháng người dùng hỏi nằm trong {window_txt} thì TUYỆT ĐỐI KHÔNG đặt notes="OUT_OF_RANGE" và không dùng truy vấn MIN/MAX. 
+Chỉ dùng OUT_OF_RANGE khi tất cả mốc đều nằm ngoài.
 
 QUY TẮC THỜI GIAN
 - "năm nay"→{today_year}; "năm trước"→{prev_year}; "N năm trước"→{today_year}-N
@@ -162,23 +194,26 @@ QUY TẮC THỜI GIAN
 SCHEMA (JSON)
 {schema}
 
-HƯỚNG DẪN
+HƯỚNG DẪN TRUY VẤN & ALIAS
 - Chỉ dùng cột/bảng trong schema; không DDL/DML; không SELECT *.
 - Thời gian: dd.month_key (YYYY-MM) hoặc kpi_*_m.month_key.
 - Join chuẩn: fs.date_key=dd.date_key; fs.product_id=dp.product_id.
-- Tổng hợp ví dụ: SUM(fs.sales) AS sales, SUM(fs.profit) AS profit, SUM(fs.qty) AS qty, COUNT(DISTINCT fs.order_id) AS orders.
-- Tiêu đề biểu đồ phải tiếng Việt, ngắn.
+- Tổng hợp ví dụ (ALIAS CHUẨN): SUM(fs.sales) AS sales, SUM(fs.profit) AS profit, SUM(fs.qty) AS qty, COUNT(DISTINCT fs.order_id) AS orders.
+- Nếu nguồn có *_m → alias về tên chuẩn: sales_m AS sales, profit_m AS profit, qty_m AS qty, orders_m AS orders.
+- Với câu hỏi **một mốc thời gian duy nhất**, phải trả về **giá trị số cụ thể** (ví dụ tổng doanh thu/năm đó) → intent="insight", draw_chart=false.
+- Tiêu đề biểu đồ phải tiếng Việt, ngắn, bám sát câu hỏi.
 
 ĐẦU RA (JSON DUY NHẤT)
 {{
   "intent": "chart"|"insight",
-  "draw_chart": false,
+  "draw_chart": false|true,
   "reason": "...",
   "sql": "SELECT ...",
   "notes": "...",
   "viz": {{"chart_type":"...","x":"...","y":"...","title":"...","sort":"...","limit":24}} | null
 }}
 """.strip()
+
 
 def llm_generate_sql(question: str, schema_path: str = "schema_catalog.json") -> Dict[str, Any]:
     """Ask Gemini to generate a single SELECT SQL and optional viz spec."""
@@ -201,6 +236,7 @@ def llm_generate_sql(question: str, schema_path: str = "schema_catalog.json") ->
 
     # Retrieve data window for guardrails and user messaging.
     mn, mx = query_engine.get_month_key_range()
+
     window_txt = f"{mn} đến {mx}" if (mn and mx) else "KHÔNG RÕ"
 
     sys_prompt = _build_sql_prompt(
@@ -213,7 +249,9 @@ def llm_generate_sql(question: str, schema_path: str = "schema_catalog.json") ->
     )
 
     # Keep user message separate for better grounding.
-    user_msg = f"Câu hỏi (đã chuẩn hoá thời gian): {norm_question}"
+    user_msg = (
+    f"Câu hỏi (đã chuẩn hoá thời gian): {norm_question}\n"
+)
 
     model = genai.GenerativeModel(
     GEMINI_MODEL,
@@ -247,20 +285,26 @@ def llm_make_insight(
     mn, mx = query_engine.get_month_key_range()
     window_txt = f"{mn} đến {mx}" if (mn and mx) else "KHÔNG RÕ"
 
-    # Keep prompt short; force pure text response.
     prompt = (
-        "Bạn là chuyên gia BI. Viết insight TIẾNG VIỆT ngắn gọn (≤2 câu, ≤45 từ/câu),"
-        " có thể nêu số/% khi phù hợp.\n"
-        f"Câu hỏi của ngươi dùng là {params.get('question')}.\n"
-        f"- Cửa sổ dữ liệu (month_key): {window_txt}\n"
-        "- QUY TẮC:\n"
-        "  * Nếu data_rows trống HOẶC chỉ gồm min/max window → chỉ trả: "
-        f"'Không có dữ liệu cho mốc đã hỏi, dữ liệu chỉ có từ {window_txt}.'\n"
-        "  * Nếu có dữ liệu hợp lệ → tóm tắt ngắn, nêu số chính (sales/profit/qty) nếu có.\n"
-        f"intent={intent}\n"
-        f"data_rows(<=10)={json.dumps(answer_table[:10], ensure_ascii=False)}\n"
-        "Chỉ trả văn bản (không JSON/markdown)."
-    )
+    "Bạn là chuyên gia BI. Viết insight TIẾNG VIỆT ngắn gọn (≤2 câu, ≤45 từ/câu),"
+    " có thể nêu số/% khi phù hợp.\n"
+    f"Câu hỏi của người dùng là: {params.get('question')}.\n"
+    f"- Cửa sổ dữ liệu (month_key): {window_txt}\n"
+    "- QUY TẮC:\n"
+    "  * Xác định phạm vi mốc thời gian trong câu hỏi so với cửa sổ trên:\n"
+    "    - Nếu **bất kỳ mốc** nằm TRONG cửa sổ → coi là **IN_RANGE**.\n"
+    "    - Chỉ khi **tất cả mốc** đều ngoài cửa sổ → coi là **OUT_OF_RANGE**.\n"
+    "  * Nếu data_rows **trống** hoặc chỉ gồm min/max-window và trạng thái là **OUT_OF_RANGE** → chỉ trả: "
+    f"'Không có dữ liệu cho mốc đã hỏi, dữ liệu chỉ có từ {window_txt}.'\n"
+    "  * Nếu data_rows **trống** nhưng trạng thái là **IN_RANGE** (ví dụ lọc 'lỗ' mà không có nhóm nào lỗ) → chỉ trả: "
+    f"'Dữ liệu không có thông tin cho mốc đã hỏi trong phạm vi {window_txt}.'\n"
+    "  * Nếu có dữ liệu hợp lệ → tóm tắt ngắn, nêu số chính (sales/profit/qty) khi phù hợp. Tránh mỹ từ.\n"
+    "Gợi ý diễn giải:\n"
+    "  - 'lỗ' → dựa trên profit âm; 'lãi/lợi nhuận' → profit dương; 'doanh thu' → sales (không âm).\n"
+    f"intent={intent}\n"
+    f"data_rows(<=10)={json.dumps(answer_table[:10], ensure_ascii=False)}\n"
+    "Chỉ trả văn bản (không JSON/markdown)."
+)
 
     model = genai.GenerativeModel(
     GEMINI_MODEL,
