@@ -12,7 +12,6 @@ import sqlite3
 # Path to SQLite database file
 DB_PATH = Path("artifacts/salesmart.db")
 
-
 def execute_sql(sql: str) -> List[Dict[str, Any]]:
     # Ensure the query is a valid SELECT statement
     if not isinstance(sql, str) or not sql.strip().lower().startswith("select"):
@@ -30,6 +29,7 @@ def execute_sql(sql: str) -> List[Dict[str, Any]]:
 
     try:
         cursor = conn.execute(sql)
+        print([dict(row) for row in cursor.fetchall()])
         return [dict(row) for row in cursor.fetchall()]
     except sqlite3.OperationalError as e:
         msg = str(e)
