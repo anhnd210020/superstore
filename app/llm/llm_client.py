@@ -47,12 +47,20 @@ def llm_generate_sql(
     resp = model.generate_content([sys_prompt, user_msg])
 
     data = safe_json(resp_text(resp))
-    return {
-        "intent": (data.get("intent") or "insight").strip(),
-        "sql": (data.get("sql") or "").strip(),
-        "viz": data.get("viz") or None,
-    }
+    print("Generated SQL and viz:", data)
 
+    llm_intent = (data.get("intent") or "insight").strip()
+    sql = (data.get("sql") or "").strip()
+    viz = data.get("viz") or None
+
+    if not sql.lower().startswith("select"):
+        raise ValueError(f"Only SELECT queries are allowed, got: {sql!r}")
+    
+    return {
+        "llm_intent": llm_intent,  
+        "sql": sql,
+        "viz": viz,
+    }
 
 def llm_make_insight(
     intent: str,
