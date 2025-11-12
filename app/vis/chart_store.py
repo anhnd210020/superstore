@@ -31,7 +31,7 @@ def save_chart_image_dated(chart_image: bytes) -> str:
 def write_chart_insight_jsonl(png_path: str, question: str, insight_text: str) -> str:
     """
     Write a JSONL file next to the chart image with the same base name and a .jsonl extension.
-    Each line contains: {ts_ms, timestamp, question, insight_text}.
+    Each line contains: {timestamp, question, insight_text}.
     Returns the path to the .jsonl file.
     """
     p = Path(png_path)
@@ -40,7 +40,6 @@ def write_chart_insight_jsonl(png_path: str, question: str, insight_text: str) -
     now = time.time()
     line = (
         '{'
-        f'"ts_ms": {int(now * 1000)}, '
         f'"timestamp": "{datetime.fromtimestamp(now).strftime("%Y-%m-%d %H:%M:%S")}", '
         f'"question": {repr(question)}, '
         f'"insight_text": {repr(insight_text)}'
