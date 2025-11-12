@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 def make_chart_png(
     rows: List[Dict[str, Any]],
     viz: Dict[str, Any],
-    width: int = 900,
-    height: int = 500,
+    width: int = 1600, #900
+    height: int = 700, #500
 ) -> Dict[str, Any]:
     """
     Render a simple chart (line/bar) to PNG base64 from rows and viz spec.
@@ -29,7 +29,7 @@ def make_chart_png(
     y_key = viz.get("y")
     title = str(viz.get("title", ""))
     sort = str(viz.get("sort", "none")).lower()
-    limit = int(viz.get("limit", 24))
+    limit_raw = viz.get("limit")
 
     # Copy data to avoid mutating the original list
     data = rows[:]
@@ -45,8 +45,14 @@ def make_chart_png(
                 reverse=True,
             )
 
-    # Limit number of records to plot
-    data = data[:limit]
+    # Limit number of records to plot (nếu có)
+    if limit_raw is not None:
+        try:
+            limit = int(limit_raw)
+        except (TypeError, ValueError):
+            limit = None
+        if limit is not None and limit > 0:
+            data = data[:limit]
 
     # Extract values for axes
     x_vals = [str(r.get(x_key)) for r in data]
