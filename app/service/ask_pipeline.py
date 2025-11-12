@@ -108,12 +108,13 @@ def ask_once(
         rows=rows,
     )    
     print(f"Decided final_intent: {final_intent} (llm_intent={llm_intent}, chart_mode={chart_mode})")
-    
+
     # Step 4: Nếu final_intent là chart + viz hợp lệ → vẽ chart
     if final_intent == "chart" and _valid_chart_spec(rows, viz):
         # chuẩn hóa key về lowercase để khớp với viz['x'], viz['y']
         rows_norm = [{k.lower(): v for k, v in r.items()} for r in rows]
 
+        print("VIZ SPEC:", viz)
         chart = chart_renderer.make_chart_png(rows_norm, viz)
         png_bytes = chart["data_bytes"]
 
