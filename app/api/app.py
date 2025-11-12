@@ -16,7 +16,7 @@ app = FastAPI()
 # Define the request body schema (input format)
 class AskIn(BaseModel):
     question: str  # Câu hỏi ngôn ngữ tự nhiên của người dùng
-    chart_mode: Literal["auto", "text_only", "chart_preferred"] = "auto"
+    chart_mode: Literal["auto", "text_only"] = "auto"
 
 # Define the API endpoint for asking a question
 @app.post("/ask", response_model=None)
