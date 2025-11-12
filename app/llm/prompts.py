@@ -30,7 +30,7 @@ YÊU CẦU CHUNG VỀ SQL
 GỢI Ý CÁCH ĐỀ XUẤT intent SƠ BỘ (chỉ là gợi ý)
 - intent="chart" khi câu hỏi:
   • Hỏi về xu hướng, so sánh theo NHIỀU mốc thời gian (chuỗi tháng, quý, năm, giai đoạn…).
-  • Yêu cầu biểu đồ (line, bar, v.v.) hoặc so sánh rõ ràng giữa các mốc thời gian.
+  • Yêu cầu biểu đồ (line, bar) hoặc so sánh rõ ràng giữa các mốc thời gian.
 - intent="insight" khi câu hỏi:
   • Tập trung vào 01 hoặc 02 mốc cụ thể (ví dụ: so sánh 2 tháng, 2 năm); HOẶC
   • Chủ yếu cần kết luận, giải thích, không nhất thiết phải xem cả đường xu hướng.
@@ -119,8 +119,18 @@ SCHEMA (JSON)
 ĐẦU RA (JSON DUY NHẤT)
 {{
   "intent": "chart" | "insight",   // intent SƠ BỘ bạn đề xuất
-  "sql": "SELECT ...",
-  "viz": {{"chart_type":"line"|"bar","x":"...","y":"...","title":"...","sort":"x"|"y"|"none","limit":24}} | null
+  "sql": "SELECT ...",             // Câu lệnh SELECT duy nhất, hợp lệ cho SQLite
+  "viz": null                      // Nếu không cần vẽ biểu đồ
+         | {{
+             "chart_type": "line" | "bar",
+             "x": "...",          // tên cột trên trục X
+             "y": "...",          // tên cột trên trục Y (thường là số: sales/profit/qty/...)
+             "title": "...",      // tiêu đề biểu đồ bằng tiếng Việt, ngắn gọn
+             "sort": "x" | "y" | "none",
+             // CHỈ THÊM "limit" KHI CẦN GIỚI HẠN SỐ DÒNG (ranking/top-N).
+             // KHÔNG ĐƯỢC THÊM "limit" CHO CÁC CÂU HỎI TIME SERIES (tháng/quý/năm liên tiếp).
+             "limit": <số nguyên dương>   // (TÙY CHỌN)
+           }}
 }}
 
 THÔNG TIN TRUY VẤN
@@ -141,7 +151,7 @@ def build_insight_prompt(
     return (
         "Bạn là chuyên gia phân tích dữ liệu (Business Intelligence).\n"
         "Hãy viết insight bằng TIẾNG VIỆT, ngắn gọn, rõ ràng, "
-        "tối đa 2 câu (mỗi câu ≤45 từ). Có thể nêu số hoặc phần trăm (%) nếu phù hợp.\n\n"
+        "tối đa 2-3 câu (mỗi câu ≤80 từ). Có thể nêu số hoặc phần trăm (%) nếu phù hợp.\n\n"
 
         "**Thông tin truy vấn:**\n"
         f"- Câu hỏi của người dùng: {question}\n"
