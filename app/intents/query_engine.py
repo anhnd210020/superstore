@@ -17,8 +17,6 @@ def execute_sql(sql: str) -> List[Dict[str, Any]]:
     if not isinstance(sql, str) or not sql.strip().lower().startswith("select"):
         raise ValueError("Only SELECT statements are allowed.")
 
-    sql_norm = sql.strip().lower()
-
     # Ensure database exists before executing
     if not DB_PATH.exists():
         raise FileNotFoundError(f"Database not found: {DB_PATH}")
@@ -29,7 +27,7 @@ def execute_sql(sql: str) -> List[Dict[str, Any]]:
 
     try:
         cursor = conn.execute(sql)
-        print([dict(row) for row in cursor.fetchall()])
+        # print([dict(row) for row in cursor.fetchall()])
         return [dict(row) for row in cursor.fetchall()]
     except sqlite3.OperationalError as e:
         msg = str(e)
