@@ -80,6 +80,8 @@ The .xlsx file then served as the source for generating the salesmart.db databas
 | **Country**       | Customer's country                | Majority: United States                 |
 | **City**          | Customer's city                   | New York City (9%), Los Angeles (7%), Others (83%) |
 
+5. **Metadata (Full Field Descriptions)**
+
 ## Installation
 
 For this project, **python=3.11** are used.
