@@ -82,6 +82,28 @@ The .xlsx file then served as the source for generating the salesmart.db databas
 
 5. **Metadata (Full Field Descriptions)**
 
+- **Row ID** – Unique ID for each row  
+- **Order ID** – Unique order code for each customer  
+- **Order Date** – Date the product was ordered  
+- **Ship Date** – Date the product was shipped  
+- **Ship Mode** – Customer-selected shipping mode  
+- **Customer ID** – Identifier for each customer  
+- **Customer Name** – Name of the customer  
+- **Segment** – Customer segment (Consumer, Corporate, Home Office…)  
+- **Country** – Customer’s country  
+- **City** – Customer’s city  
+- **State** – Customer’s state  
+- **Postal Code** – Customer postal code  
+- **Region** – Customer region  
+- **Product ID** – Product identifier  
+- **Category** – Product category (Furniture, Office Supplies…)  
+- **Sub-Category** – More specific product grouping  
+- **Product Name** – Name of the product  
+- **Sales** – Revenue generated  
+- **Quantity** – Quantity ordered  
+- **Discount** – Discount applied  
+- **Profit** – Profit or loss for the sale  
+
 ## Installation
 
 For this project, **python=3.11** are used.
