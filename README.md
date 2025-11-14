@@ -104,6 +104,12 @@ The .xlsx file then served as the source for generating the salesmart.db databas
 - **Discount** – Discount applied  
 - **Profit** – Profit or loss for the sale  
 
+6. **Acknowledgements**
+
+- This dataset originates from Tableau public resources.
+- All credits belong to the original creators.
+- Used strictly for educational and research purposes.
+
 ## Installation
 
 For this project, **python=3.11** are used.
