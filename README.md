@@ -41,6 +41,8 @@ The Superstore AI system operates as follows: the user submits a natural-languag
 | **Visualization** | Matplotlib     |
 | **Language**   | Python 3.11       |
 
+## Dataset
+
 ## Installation
 
 For this project, **python=3.11** are used.
