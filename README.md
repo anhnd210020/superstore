@@ -58,6 +58,28 @@ https://www.kaggle.com/datasets/vivek468/superstore-dataset-final
 To align with the project format required by my mentor, the original dataset (CSV) was converted to XLSX before building the SQLite DataMart.
 The .xlsx file then served as the source for generating the salesmart.db database via the datamart_build.py script.
 
+4. **Dataset Characteristics**
+
+### Order & Shipping Attributes
+
+| Field        | Description                     | Notes                                       |
+|--------------|---------------------------------|---------------------------------------------|
+| **Row ID**   | Unique row identifier           | 9,994 rows total                             |
+| **Order ID** | Unique order identifier         | 5,009 unique values                          |
+| **Order Date** | Date the order was placed     | Range: 2014-01-03 → 2017-12-30               |
+| **Ship Date**  | Date the order was shipped    | Range: 2014-01-07 → 2018-01-05               |
+| **Ship Mode**  | Shipping method               | Standard Class (60%), Second Class (19%), Others (21%) |
+
+### Customer Attributes
+
+| Field             | Description                       | Notes                                  |
+|-------------------|-----------------------------------|----------------------------------------|
+| **Customer ID**   | Unique customer identifier        | 793 unique customers                    |
+| **Customer Name** | Name of the customer              | 793 unique names                        |
+| **Segment**       | Customer market segment           | Consumer (52%), Corporate (30%), Others (18%) |
+| **Country**       | Customer's country                | Majority: United States                 |
+| **City**          | Customer's city                   | New York City (9%), Los Angeles (7%), Others (83%) |
+
 ## Installation
 
 For this project, **python=3.11** are used.
