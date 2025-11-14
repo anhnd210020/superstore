@@ -53,6 +53,11 @@ A major Superstore retailer aims to understand which products, regions, categori
 
 https://www.kaggle.com/datasets/vivek468/superstore-dataset-final
 
+3. **Data Preparation for This Project**
+
+To align with the project format required by my mentor, the original dataset (CSV) was converted to XLSX before building the SQLite DataMart.
+The .xlsx file then served as the source for generating the salesmart.db database via the datamart_build.py script.
+
 ## Installation
 
 For this project, **python=3.11** are used.
