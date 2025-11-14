@@ -49,6 +49,10 @@ This project uses the Superstore Sales Dataset, a well-known retail analytics da
 
 A major Superstore retailer aims to understand which products, regions, categories, and customer segments perform best. The dataset enables various analyses such as revenue trends, product profitability, customer segmentation, and even predictive modeling for Sales or Profit.
 
+2. **Dataset Link**
+
+https://www.kaggle.com/datasets/vivek468/superstore-dataset-final
+
 ## Installation
 
 For this project, **python=3.11** are used.
