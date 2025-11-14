@@ -42,6 +42,7 @@ The Superstore AI system operates as follows: the user submits a natural-languag
 | **Language**   | Python 3.11       |
 
 ## Dataset
+This project uses the Superstore Sales Dataset, a well-known retail analytics dataset widely used in BI, dashboarding, and machine-learning experiments. It contains detailed information on orders, customers, products, shipments, and profitability making it ideal for building a natural-language analytics system like Superstore AI.
 
 ## Installation
 
