@@ -214,6 +214,7 @@ To start the FastAPI server, run the following command in the project root:
 ##  Author
 
 **Nguyễn Đức Anh**
+
 University: Hanoi University of Science and Technology (HUST)
 Email: [anh.nd210020@gmail.com](mailto:anh.nd210020@gmail.com)
 Address: Hanoi, Vietnam
